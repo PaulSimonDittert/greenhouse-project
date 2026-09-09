@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 
 from infrastructure.settings import settings
-from interfaces.api import health
+from interfaces.api import health, sensors
 
 # Create the app with Swagger/ReDoc explicitly disabled per requirements
 app = FastAPI(
@@ -24,6 +24,7 @@ app.add_middleware(
 
 # Attach the health route we made earlier
 app.include_router(health.router)
+app.include_router(sensors.router)
 
 # GET / discovery route
 @app.get("/")
