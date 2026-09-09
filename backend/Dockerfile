@@ -5,8 +5,6 @@ COPY pyproject.toml ./
 COPY src ./src
 COPY alembic ./alembic
 COPY alembic.ini ./
-# If you don't have a tests folder yet, you can leave this out or create an empty one
-# COPY tests ./tests
 
 RUN pip install --no-cache-dir -e ".[dev]"
 ENV PYTHONPATH=/app/src
