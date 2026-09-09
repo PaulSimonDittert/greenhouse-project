@@ -1,12 +1,10 @@
+import SensorList from "../features/sensors/SensorList";
+
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h3 className="font-medium text-gray-300">Sensors</h3>
-          <p className="text-sm text-gray-500 mt-1">Placeholder for sensors</p>
-          <div className="mt-4 text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded inline-block">Placeholder</div>
-        </div>
+        <SensorList />
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <h3 className="font-medium text-gray-300">Configuration</h3>
           <p className="text-sm text-gray-500 mt-1">Placeholder for configuration</p>
