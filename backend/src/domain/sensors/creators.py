@@ -27,5 +27,7 @@ def get_creator(sensor_type: str) -> SensorCreator:
         return MoistureSensorCreator()
     elif sensor_type == "light":
         return LightSensorCreator()
+    elif sensor_type == "temperature":
+        return TemperatureSensorCreator()
     else:
         raise ValueError(f"Unknown sensor type: {sensor_type}")
