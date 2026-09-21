@@ -15,6 +15,7 @@ class DeviceRow(Base):
     )
     device_type: Mapped[str] = mapped_column(String(64), nullable=False)
     role: Mapped[str] = mapped_column(String(32), default="sensor", server_default="sensor")
+    device_family: Mapped[str] = mapped_column(String(32), nullable=False, server_default="simulation")
     display_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     default_config: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
     created_at = mapped_column(
@@ -25,4 +26,5 @@ class DeviceRow(Base):
 
     __table_args__ = (
         Index("ix_devices_role", "role"),
+        Index("ix_devices_family", "device_family"),
     )
