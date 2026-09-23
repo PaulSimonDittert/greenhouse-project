@@ -4,7 +4,7 @@ import DeviceList from "../components/devices/DeviceList";
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <SensorList />
         <DeviceList />
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
