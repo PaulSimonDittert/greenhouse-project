@@ -10,20 +10,30 @@ export default function SensorList() {
     try {
       const data = await fetchSensors();
       setSensors(data);
-    } catch (err) {
+    } catch {
       setError("Failed to load sensors");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadSensors(); }, []);
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(fetchSensors).then((data) => {
+      if (active) setSensors(data);
+    }).catch(() => {
+      if (active) setError("Failed to load sensors");
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   const handleAdd = async (type: string) => {
     try {
       await createSensor(type);
       await loadSensors(); // Reload the list
-    } catch (err) {
+    } catch {
       alert("Failed to add sensor");
     }
   };
