@@ -1,10 +1,13 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-
 from infrastructure.db import get_db
 from application.devices.family_service import DeviceFamilyService
 from application.devices.dto import DeviceDto
 from application.devices.mappers import devices_to_dtos
+from application.locations.dto import ZoneAssignDeviceDto
+from application.locations.zone_assignment_service import ZoneAssignmentService
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
 
@@ -26,3 +29,12 @@ def list_devices(
     service = DeviceFamilyService(db)
     devices = service.list_devices(device_family=family, role=role)
     return devices_to_dtos(devices)
+
+@router.patch("/{device_id}/zone", status_code=200)
+def assign_device_zone(device_id: uuid.UUID, payload: ZoneAssignDeviceDto, db: Session = Depends(get_db)):
+    service = ZoneAssignmentService(db)
+    try:
+        service.assign(device_id, payload.zone_id)
+        return {"status": "success"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
