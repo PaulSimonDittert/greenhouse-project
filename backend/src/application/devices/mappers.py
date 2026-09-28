@@ -11,7 +11,9 @@ def device_to_dto(device: Device) -> DeviceDto:
         role=device.role,
         device_family=device.device_family,
         display_name=device.display_name,
-        default_config=device.default_config
+        default_config=device.default_config,
+        zone_id=device.zone_id,
+        location_id=device.location_id
     )
 
 def devices_to_dtos(devices: list[Device]) -> list[DeviceDto]:

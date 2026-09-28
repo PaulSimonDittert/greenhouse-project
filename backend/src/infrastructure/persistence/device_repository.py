@@ -67,6 +67,12 @@ class DeviceRepository:
             
         rows = query.order_by(DeviceRow.created_at.desc()).all()
         return [
-            Device(id=row.id, device_type=row.device_type, role=row.role, device_family=row.device_family, display_name=row.display_name, default_config=row.default_config)
+            Device(
+                id=row.id, device_type=row.device_type, role=row.role, 
+                device_family=row.device_family, display_name=row.display_name, 
+                default_config=row.default_config,
+                zone_id=row.zone_id,
+                location_id=row.location_id
+            )
             for row in rows
         ]

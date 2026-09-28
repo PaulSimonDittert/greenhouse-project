@@ -8,3 +8,5 @@ class DeviceDto(BaseModel):
     device_family: str
     display_name: str | None
     default_config: dict
+    zone_id: uuid.UUID | None = None
+    location_id: uuid.UUID | None = None

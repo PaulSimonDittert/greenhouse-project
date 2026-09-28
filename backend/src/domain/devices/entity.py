@@ -9,3 +9,5 @@ class Device:
     display_name: str
     default_config: dict
     id: uuid.UUID | None = None
+    zone_id: uuid.UUID | None = None
+    location_id: uuid.UUID | None = None
