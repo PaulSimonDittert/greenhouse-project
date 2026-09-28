@@ -1,9 +1,47 @@
 import uuid
-from sqlalchemy import String, text, Index
+from sqlalchemy import String, text, Index, ForeignKey, Float
 from sqlalchemy.dialects.postgresql import UUID, JSONB, TIMESTAMP
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+
+class LocationRow(Base):
+    __tablename__ = "locations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), 
+        primary_key=True, 
+        server_default=text("gen_random_uuid()")
+    )
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at = mapped_column(
+        TIMESTAMP(timezone=True), 
+        server_default=text("now()"), 
+        nullable=False
+    )
+    
+    zones = relationship("ZoneRow", back_populates="location", cascade="all, delete-orphan")
+
+class ZoneRow(Base):
+    __tablename__ = "zones"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), 
+        primary_key=True, 
+        server_default=text("gen_random_uuid()")
+    )
+    location_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), 
+        ForeignKey("locations.id", ondelete="CASCADE"), 
+        nullable=False, 
+        index=True
+    )
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    moisture_threshold_low: Mapped[float] = mapped_column(Float, nullable=False)
+    moisture_threshold_high: Mapped[float] = mapped_column(Float, nullable=False)
+    schedule: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    location = relationship("LocationRow", back_populates="zones")
 
 class DeviceRow(Base):
     __tablename__ = "devices"
@@ -22,6 +60,18 @@ class DeviceRow(Base):
         TIMESTAMP(timezone=True), 
         server_default=text("now()"), 
         nullable=False
+    )
+
+    zone_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), 
+        ForeignKey("zones.id", ondelete="SET NULL"), 
+        nullable=True, 
+        index=True
+    )
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), 
+        ForeignKey("locations.id", ondelete="SET NULL"), 
+        nullable=True
     )
 
     __table_args__ = (
