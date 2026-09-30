@@ -3,6 +3,7 @@ import os
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -19,6 +20,7 @@ def test_migrations_upgrade_empty_database_to_head():
             connection.execute(text("CREATE SCHEMA public"))
 
         alembic_config = Config("alembic.ini")
+        expected_head = ScriptDirectory.from_config(alembic_config).get_current_head()
         development_database_url = settings.database_url
         settings.database_url = TEST_DATABASE_URL
         try:
@@ -33,6 +35,6 @@ def test_migrations_upgrade_empty_database_to_head():
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
 
         assert {"devices", "locations", "zones", "alembic_version"}.issubset(tables)
-        assert revision == "779ded18505f"
+        assert revision == expected_head
     finally:
         engine.dispose()

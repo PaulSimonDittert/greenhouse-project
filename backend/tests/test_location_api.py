@@ -25,10 +25,11 @@ def api_client():
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
     try:
-        with TestClient(app) as client:
-            yield client
+        yield client
     finally:
+        client.close()
         app.dependency_overrides.pop(get_db, None)
         Base.metadata.drop_all(engine)
         engine.dispose()
