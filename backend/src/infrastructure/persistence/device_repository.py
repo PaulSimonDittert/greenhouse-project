@@ -85,6 +85,21 @@ class DeviceRepository:
         row = self.db.query(DeviceRow).filter(DeviceRow.id == device_id).first()
         return _device_from_row(row) if row else None
 
+    def update_sampling_settings(
+        self,
+        device_id: uuid.UUID,
+        sampling_interval_seconds: int,
+        tracking_enabled: bool,
+    ) -> Device | None:
+        row = self.db.query(DeviceRow).filter(DeviceRow.id == device_id).first()
+        if row is None:
+            return None
+        row.sampling_interval_seconds = sampling_interval_seconds
+        row.tracking_enabled = tracking_enabled
+        self.db.commit()
+        self.db.refresh(row)
+        return _device_from_row(row)
+
     def list_simulation_sensors(self) -> list[Device]:
         rows = (
             self.db.query(DeviceRow)
