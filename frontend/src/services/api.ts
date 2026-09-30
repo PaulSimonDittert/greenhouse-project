@@ -20,8 +20,23 @@ export async function fetchHealth(): Promise<HealthResponse> {
 export interface SensorDto {
   id: string;
   device_type: string;
-  display_name: string;
+  display_name: string | null;
   default_config: Record<string, unknown>;
+  sampling_interval_seconds: number;
+  tracking_enabled: boolean;
+}
+
+export interface ReadingDto {
+  device_id: string;
+  value: number;
+  unit: string;
+  source: "simulation" | "mqtt" | "vendor";
+  recorded_at: string;
+}
+
+export interface SamplingSettingsDto {
+  sampling_interval_seconds: number;
+  tracking_enabled: boolean;
 }
 
 export async function fetchSensors(): Promise<SensorDto[]> {
@@ -38,6 +53,31 @@ export async function createSensor(type: string, displayName?: string): Promise<
   });
   if (!res.ok) throw new Error("Failed to create sensor");
   return res.json();
+}
+
+export async function fetchSensorReadings(deviceId: string, limit = 1): Promise<ReadingDto[]> {
+  const response = await fetch(`${API_BASE_URL}/api/sensors/${deviceId}/readings?limit=${limit}`);
+  if (!response.ok) throw await apiError(response, "Failed to load sensor readings");
+  return response.json();
+}
+
+export async function readSensor(deviceId: string): Promise<ReadingDto> {
+  const response = await fetch(`${API_BASE_URL}/api/sensors/${deviceId}/read`, { method: "POST" });
+  if (!response.ok) throw await apiError(response, "Failed to read sensor");
+  return response.json();
+}
+
+export async function updateSamplingSettings(
+  deviceId: string,
+  settings: SamplingSettingsDto,
+): Promise<SamplingSettingsDto> {
+  const response = await fetch(`${API_BASE_URL}/api/devices/${deviceId}/sampling`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  if (!response.ok) throw await apiError(response, "Failed to update sampling settings");
+  return response.json();
 }
 
 export interface DeviceDto {

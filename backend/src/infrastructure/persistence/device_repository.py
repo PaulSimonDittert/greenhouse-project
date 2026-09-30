@@ -45,6 +45,8 @@ class DeviceRepository:
         self.db.commit()
         self.db.refresh(row)
         sensor.id = row.id
+        sensor.sampling_interval_seconds = row.sampling_interval_seconds
+        sensor.tracking_enabled = row.tracking_enabled
         return sensor
 
     def list_sensors(self) -> list[Sensor]:
@@ -54,7 +56,9 @@ class DeviceRepository:
                 id=row.id,
                 device_type=row.device_type,
                 display_name=row.display_name,
-                default_config=row.default_config
+                default_config=row.default_config,
+                sampling_interval_seconds=row.sampling_interval_seconds,
+                tracking_enabled=row.tracking_enabled,
             )
             for row in rows
         ]

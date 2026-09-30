@@ -19,6 +19,8 @@ class SensorResponse(BaseModel):
     device_type: str
     display_name: str | None
     default_config: dict
+    sampling_interval_seconds: int
+    tracking_enabled: bool
 
 @router.post("", response_model=SensorResponse, status_code=201)
 def create_sensor(payload: SensorCreate, db: Session = Depends(get_db)):
