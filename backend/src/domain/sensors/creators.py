@@ -11,7 +11,7 @@ class MoistureSensorCreator(SensorCreator):
         return Sensor(
             device_type="moisture_sensor",
             display_name=display_name or "Soil Moisture Sensor",
-            default_config={"unit": "vwc", "sampling_interval_seconds": 300, "threshold": 20.0}
+            default_config={"protocol": "simulation", "unit": "vwc", "sampling_interval_seconds": 300, "threshold": 20.0}
         )
 
 class LightSensorCreator(SensorCreator):
@@ -19,7 +19,7 @@ class LightSensorCreator(SensorCreator):
         return Sensor(
             device_type="light_sensor",
             display_name=display_name or "Ambient Light Sensor",
-            default_config={"unit": "lux", "sampling_interval_seconds": 60}
+            default_config={"protocol": "simulation", "unit": "lux", "sampling_interval_seconds": 60}
         )
 
 def get_creator(sensor_type: str) -> SensorCreator:
