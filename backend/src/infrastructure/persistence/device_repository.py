@@ -1,7 +1,32 @@
+import uuid
+
 from sqlalchemy.orm import Session
 from domain.sensors.entity import Sensor
 from domain.devices.entity import Device
 from infrastructure.persistence.models import DeviceRow
+
+
+def _device_from_row(row: DeviceRow) -> Device:
+    return Device(
+        id=row.id,
+        device_type=row.device_type,
+        role=row.role,
+        device_family=row.device_family,
+        display_name=row.display_name or row.device_type,
+        default_config=row.default_config,
+        zone_id=row.zone_id,
+        location_id=row.location_id,
+        sampling_interval_seconds=row.sampling_interval_seconds,
+        tracking_enabled=row.tracking_enabled,
+    )
+
+
+def _sampling_interval(default_config: dict) -> int:
+    value = default_config.get("sampling_interval_seconds")
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return 300
+
 
 class DeviceRepository:
     def __init__(self, db: Session):
@@ -13,7 +38,8 @@ class DeviceRepository:
             role="sensor",
             device_family="simulation",
             display_name=sensor.display_name,
-            default_config=sensor.default_config
+            default_config=sensor.default_config,
+            sampling_interval_seconds=_sampling_interval(sensor.default_config),
         )
         self.db.add(row)
         self.db.commit()
@@ -41,7 +67,8 @@ class DeviceRepository:
                 role=d.role,
                 device_family=d.device_family,
                 display_name=d.display_name,
-                default_config=d.default_config
+                default_config=d.default_config,
+                sampling_interval_seconds=_sampling_interval(d.default_config),
             )
             rows.append(row)
             self.db.add(row)
@@ -51,12 +78,24 @@ class DeviceRepository:
         result = []
         for row, d in zip(rows, devices):
             self.db.refresh(row)
-            result.append(Device(
-                id=row.id, device_type=d.device_type, role=d.role, 
-                device_family=d.device_family, display_name=d.display_name, 
-                default_config=d.default_config
-            ))
+            result.append(_device_from_row(row))
         return result
+
+    def get_device(self, device_id: uuid.UUID) -> Device | None:
+        row = self.db.query(DeviceRow).filter(DeviceRow.id == device_id).first()
+        return _device_from_row(row) if row else None
+
+    def list_simulation_sensors(self) -> list[Device]:
+        rows = (
+            self.db.query(DeviceRow)
+            .filter(
+                DeviceRow.role == "sensor",
+                DeviceRow.tracking_enabled.is_(True),
+                DeviceRow.default_config["protocol"].as_string() == "simulation",
+            )
+            .all()
+        )
+        return [_device_from_row(row) for row in rows]
 
     def list_devices(self, *, device_family: str | None = None, role: str | None = None) -> list[Device]:
         query = self.db.query(DeviceRow)
@@ -66,13 +105,4 @@ class DeviceRepository:
             query = query.filter(DeviceRow.role == role)
             
         rows = query.order_by(DeviceRow.created_at.desc()).all()
-        return [
-            Device(
-                id=row.id, device_type=row.device_type, role=row.role, 
-                device_family=row.device_family, display_name=row.display_name, 
-                default_config=row.default_config,
-                zone_id=row.zone_id,
-                location_id=row.location_id
-            )
-            for row in rows
-        ]
+        return [_device_from_row(row) for row in rows]
