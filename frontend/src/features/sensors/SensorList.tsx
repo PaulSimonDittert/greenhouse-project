@@ -163,7 +163,7 @@ export default function SensorList() {
       {sensors.length === 0 ? (
         <p className="text-sm text-gray-500">No sensors added yet.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
           {sensors.map((sensor) => (
             <div key={sensor.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg">
               <div className="flex flex-wrap items-start justify-between gap-3">
