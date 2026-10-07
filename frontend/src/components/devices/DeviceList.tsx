@@ -127,6 +127,7 @@ export default function DeviceList({ configurationRevision }: DeviceListProps) {
           Provision Kit
         </button>
       </div>
+      <p className="font-medium text-gray-500 mt-1">Phase 3</p>
 
       <DeviceFamilySwitcher selected={family} onSelect={setFamily} />
 

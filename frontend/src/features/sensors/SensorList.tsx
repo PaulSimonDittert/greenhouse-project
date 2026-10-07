@@ -67,7 +67,6 @@ export default function SensorList() {
       if (active) setLatestReadings(Object.fromEntries(results));
     };
 
-    // Temporary polling; Phase 12 replaces this with WebSocket updates.
     void pollLatestReadings();
     const timer = window.setInterval(() => void pollLatestReadings(), 5000);
     return () => {
@@ -81,7 +80,7 @@ export default function SensorList() {
     setNotice(null);
     try {
       await createSensor(type);
-      await loadSensors(); // Reload the list
+      await loadSensors();
       setNotice("Sensor added.");
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Failed to add sensor");
@@ -156,6 +155,7 @@ export default function SensorList() {
           </button>
         </div>
       </div>
+      <p className="font-medium text-gray-500 mt-1">Phase 2</p>
 
       {error && <p role="alert" className="mb-3 text-sm text-red-400">{error}</p>}
       {notice && <p role="status" className="mb-3 text-sm text-emerald-400">{notice}</p>}

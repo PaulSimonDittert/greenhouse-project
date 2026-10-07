@@ -282,6 +282,7 @@ export default function LocationConfiguration({ onLocationsChanged }: { onLocati
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-100">Configuration</h2>
+          <p className="font-medium text-gray-500 mt-1">Phase 4</p>
           <p className="mt-1 text-sm text-gray-400">Locations, zones, moisture thresholds, and schedules</p>
         </div>
         {config && <p className="font-mono text-xs text-gray-500">Location ID: {config.location.id}</p>}
