@@ -110,6 +110,17 @@ export interface LocationConfigDto {
   zones: ZoneDto[];
 }
 
+export interface StrategyKeyDto {
+  strategy_key: string;
+}
+
+export interface StrategyRecommendationDto {
+  location_id: string;
+  strategy_key: string;
+  action: string;
+  reason: string;
+}
+
 export interface ZoneInput {
   name: string;
   moisture_threshold_low: number;
@@ -199,6 +210,24 @@ export async function assignDeviceZone(deviceId: string, zoneId: string | null):
     body: JSON.stringify({ zone_id: zoneId }),
   });
   if (!response.ok) throw await apiError(response, "Failed to update device zone");
+}
+
+export async function saveStrategy(locationId: string, strategyKey: string): Promise<StrategyKeyDto> {
+  const response = await fetch(`${API_BASE_URL}/api/locations/${locationId}/automation`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ strategy_key: strategyKey }),
+  });
+  if (!response.ok) throw await apiError(response, "Failed to save strategy");
+  return response.json();
+}
+
+export async function evaluateStrategy(locationId: string): Promise<StrategyRecommendationDto> {
+  const response = await fetch(`${API_BASE_URL}/api/locations/${locationId}/automation/evaluate`, {
+    method: "POST",
+  });
+  if (!response.ok) throw await apiError(response, "Failed to evaluate strategy");
+  return response.json();
 }
 
 export async function fetchDevices(family?: string, role?: string): Promise<DeviceDto[]> {
