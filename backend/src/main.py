@@ -9,7 +9,7 @@ from scalar_fastapi import get_scalar_api_reference
 from application.readings.sampler import SimulationSampler
 from infrastructure.db import SessionLocal
 from infrastructure.settings import settings
-from interfaces.api import health, sensors, devices, locations
+from interfaces.api import automation, health, sensors, devices, locations
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ app.include_router(health.router)
 app.include_router(sensors.router)
 app.include_router(devices.router)
 app.include_router(locations.router)
+app.include_router(automation.router)
 
 @app.get("/")
 def discovery():
