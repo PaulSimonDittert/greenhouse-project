@@ -11,9 +11,7 @@ First-time setup:
 Github repo: https://github.com/PaulSimonDittert/greenhouse-project
 
 Daily start:
-Terminal 1: docker compose up -d
-Terminal 2: cd backend && .venv\Scripts\Activate.ps1 && cd src && uvicorn main:app --reload --port 8000
-Terminal 3: cd frontend && npm run dev
+Terminal: docker compose up --build -d (after Step 2, every individuall container has been merged)
 
 URL's:
 Frontend - http://localhost:5174/
