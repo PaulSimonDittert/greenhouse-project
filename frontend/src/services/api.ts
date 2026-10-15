@@ -96,6 +96,45 @@ export interface LocationDto {
   name: string;
 }
 
+export interface OverviewDeviceDto {
+  id: string;
+  device_type: string;
+  role: "sensor" | "actuator";
+  display_name: string;
+}
+
+export interface OverviewReadingDto {
+  device_id: string;
+  value: number;
+  unit: string;
+  recorded_at: string;
+  tracking_enabled: boolean;
+  sampling_interval_seconds: number;
+}
+
+export interface OverviewZoneDto {
+  id: string;
+  name: string;
+  moisture_threshold_low: number;
+  moisture_threshold_high: number;
+  devices: OverviewDeviceDto[];
+  latest_readings: OverviewReadingDto[];
+}
+
+export interface LocationOverviewDto {
+  location: LocationDto;
+  device_counts: {
+    sensor: number;
+    actuator: number;
+  };
+  zones: OverviewZoneDto[];
+  strategy_key: string | null;
+  last_recommendation: {
+    action: string;
+    reason: string;
+  } | null;
+}
+
 export interface ZoneDto {
   id: string;
   location_id: string;
@@ -145,6 +184,12 @@ async function apiError(response: Response, fallback: string): Promise<Error> {
 export async function fetchLocations(): Promise<LocationDto[]> {
   const response = await fetch(`${API_BASE_URL}/api/locations`);
   if (!response.ok) throw await apiError(response, "Failed to load locations");
+  return response.json();
+}
+
+export async function fetchOverview(locationId: string): Promise<LocationOverviewDto> {
+  const response = await fetch(`${API_BASE_URL}/api/locations/${locationId}/overview`);
+  if (!response.ok) throw await apiError(response, "Failed to load location overview");
   return response.json();
 }
 
