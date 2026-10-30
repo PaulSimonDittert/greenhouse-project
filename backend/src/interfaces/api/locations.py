@@ -15,6 +15,8 @@ from application.locations.config_service import LocationConfigService
 from application.locations.zone_assignment_service import ZoneAssignmentService
 from infrastructure.persistence.location_repository import LocationRepository
 from application.devices.dto import DeviceDto
+from domain.actuators.context import ActuatorContext
+from infrastructure.persistence.actuator_state_repository import ActuatorStateRepository
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
 
@@ -83,12 +85,20 @@ def list_zone_devices(location_id: uuid.UUID, zone_id: uuid.UUID, db: Session = 
     service = ZoneAssignmentService(db)
     try:
         device_rows = service.list_devices(location_id, zone_id)
+        state_repo = ActuatorStateRepository(db)
+        states = state_repo.list_for_devices([row.id for row in device_rows if row.role == "actuator"])
         return [
             DeviceDto(
-                id=row.id, device_type=row.device_type, role=row.role,
-                device_family=row.device_family, display_name=row.display_name,
-                default_config=row.default_config
-            ) for row in device_rows
+                id=row.id,
+                device_type=row.device_type,
+                role=row.role,
+                device_family=row.device_family,
+                display_name=row.display_name,
+                default_config=row.default_config,
+                state=states.get(row.id, "idle") if row.role == "actuator" else "idle",
+                allowed_commands=ActuatorContext(states.get(row.id, "idle")).allowed_commands if row.role == "actuator" else [],
+            )
+            for row in device_rows
         ]
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
