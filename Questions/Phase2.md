@@ -18,7 +18,8 @@
 > [!NOTE]
 > ***Your Answer***
 >
-> The intent of the Factory Method is to define a standrard interface for creating objects. However the objects's subclasses can decide what data and/or configuration to create the object with. For example having one sensor creator that can create a light or moisture sensor. Having an ever growing number of new constructors or growing if-else structures, makes implementing new constructors very painful. For example the correct constructor must first be found and then altered in the Applications and API layers. This causes thight coupling and decreaes maintainability of the project. 
+> The intent of the Factory Method is to define a standrard interface for creating objects. However the objects's subclasses can decide what data and/or configuration to create the object with. For example having one sensor creator that can create a light or moisture sensor. 
+>Having an ever growing number of new constructors or growing if-else structures, makes implementing new constructors very painful. For example the correct constructor must first be found and then altered in the Applications and API layers. This causes thight coupling and decreaes maintainability of the project. 
 
 2. Name the main participants of Factory Method (**product**, **concrete product**, **creator**, **concrete creator**, **client**). For each, give one sentence: what it is responsible for.
 
@@ -48,7 +49,7 @@
 > ***Your Answer***
 >
 > The Product is the Sensor dataclass entity
-> The Concrete Creatos are the MoistureSensor - and LightSensorCreator
+> The Concrete Creatos are the MoistureSensorCreator and LightSensorCreator
 > The API must go through a registry because the API layer should not know what a MoistureSensor is or know its default config. It only needs to pass a string. 
 
 5. `POST /api/sensors` accepts a short `type` key such as `"moisture"` or `"light"`, while the stored/returned field is `device_type` (for example `moisture_sensor`). Why are those two fields different? Who decides the stored `device_type` and `default_config`?
