@@ -2,3 +2,4 @@ application
 domain
 infrastructure
 interfaces
+main

@@ -94,6 +94,23 @@ class DeviceRow(Base):
     )
 
 
+class ActuatorStateRow(Base):
+    __tablename__ = "actuator_states"
+
+    device_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    state: Mapped[str] = mapped_column(String(32), nullable=False, server_default="idle")
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+        onupdate=text("now()"),
+    )
+
+
 class ReadingRow(Base):
     __tablename__ = "sensor_readings"
 
