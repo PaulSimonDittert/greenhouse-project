@@ -17,6 +17,14 @@ interface DeviceListProps {
 
 type ZoneOption = ZoneDto & { location_name: string };
 
+const actuatorStateClasses: Record<string, string> = {
+  off: "bg-slate-700 text-slate-200",
+  idle: "bg-slate-700 text-slate-200",
+  running: "bg-emerald-900/70 text-emerald-300",
+  error: "bg-red-900/70 text-red-300",
+  maintenance: "bg-amber-900/70 text-amber-300",
+};
+
 export default function DeviceList({ configurationRevision }: DeviceListProps) {
   const [devices, setDevices] = useState<DeviceDto[]>([]);
   const [locations, setLocations] = useState<LocationDto[]>([]);
@@ -141,56 +149,77 @@ export default function DeviceList({ configurationRevision }: DeviceListProps) {
         <p className="text-sm text-gray-500">No {family} devices provisioned yet.</p>
       ) : (
         <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-          {devices.map((d) => (
-            <div key={d.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg flex flex-col">
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-medium text-gray-200">{d.display_name}</span>
-                <div className="flex gap-1">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${d.role === "actuator" ? "bg-amber-900/50 text-amber-400" : "bg-purple-900/50 text-purple-400"}`}>
-                    {d.role}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 uppercase font-bold tracking-wider">
-                    {d.device_family}
-                  </span>
+          {devices.map((d) => {
+            const isActuator = d.role === "actuator";
+            const state = isActuator ? (d.state ?? "idle") : "idle";
+            const stateTooltip = isActuator
+              ? `Allowed commands: ${d.allowed_commands?.length ? d.allowed_commands.join(", ") : "none"}`
+              : "Sensors do not use actuator states";
+
+            return (
+              <div key={d.id} className="bg-gray-800 border border-gray-700 p-3 rounded-lg flex flex-col">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="font-medium text-gray-200">{d.display_name}</span>
+                  <div className="flex gap-1 items-center">
+                    {isActuator && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${actuatorStateClasses[state] ?? actuatorStateClasses.idle}`}
+                        title={stateTooltip}
+                      >
+                        {state}
+                      </span>
+                    )}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${d.role === "actuator" ? "bg-amber-900/50 text-amber-400" : "bg-purple-900/50 text-purple-400"}`}>
+                      {d.role}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 uppercase font-bold tracking-wider">
+                      {d.device_family}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <span className="text-xs text-gray-400">Type: {d.device_type}</span>
-              <span className="text-xs text-gray-500 mt-1 font-mono truncate" title={JSON.stringify(d.default_config)}>
-                {JSON.stringify(d.default_config)}
-              </span>
-              <label className="mt-3 text-xs text-gray-400">
-                Assigned zone
-                <select
-                  value={d.zone_id ?? ""}
-                  onChange={(event) => void handleZoneChange(d, event.target.value)}
-                  disabled={assigningDeviceId === d.id}
-                  className="mt-1 w-full rounded border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-gray-200 disabled:opacity-50"
-                  aria-label={`Zone assignment for ${d.display_name || d.device_type}`}
-                >
-                  <option value="">Unassigned</option>
-                  {locations.map((location) => {
-                    const locationZones = zonesByLocation.get(location.id) ?? [];
-                    if (locationZones.length === 0) return null;
-                    return (
-                      <optgroup key={location.id} label={location.name}>
-                        {locationZones.map((zone) => (
-                          <option key={zone.id} value={zone.id}>{location.name} — {zone.name}</option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-                <span className="mt-1 block text-[11px] text-gray-500">
-                  {d.zone_id
-                    ? (() => {
-                        const assignedZone = locations.flatMap((location) => zonesByLocation.get(location.id) ?? []).find((zone) => zone.id === d.zone_id);
-                        return assignedZone ? `${assignedZone.location_name} — ${assignedZone.name}` : "Unassigned";
-                      })()
-                    : "Unassigned"}
+                <span className="text-xs text-gray-400">Type: {d.device_type}</span>
+                {isActuator && (
+                  <span className="mt-1 text-[11px] text-gray-400" title={stateTooltip}>
+                    Commands: {d.allowed_commands?.length ? d.allowed_commands.join(", ") : "none"}
+                  </span>
+                )}
+                <span className="text-xs text-gray-500 mt-1 font-mono truncate" title={JSON.stringify(d.default_config)}>
+                  {JSON.stringify(d.default_config)}
                 </span>
-              </label>
-            </div>
-          ))}
+                <label className="mt-3 text-xs text-gray-400">
+                  Assigned zone
+                  <select
+                    value={d.zone_id ?? ""}
+                    onChange={(event) => void handleZoneChange(d, event.target.value)}
+                    disabled={assigningDeviceId === d.id}
+                    className="mt-1 w-full rounded border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-gray-200 disabled:opacity-50"
+                    aria-label={`Zone assignment for ${d.display_name || d.device_type}`}
+                  >
+                    <option value="">Unassigned</option>
+                    {locations.map((location) => {
+                      const locationZones = zonesByLocation.get(location.id) ?? [];
+                      if (locationZones.length === 0) return null;
+                      return (
+                        <optgroup key={location.id} label={location.name}>
+                          {locationZones.map((zone) => (
+                            <option key={zone.id} value={zone.id}>{location.name} — {zone.name}</option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
+                  </select>
+                  <span className="mt-1 block text-[11px] text-gray-500">
+                    {d.zone_id
+                      ? (() => {
+                          const assignedZone = locations.flatMap((location) => zonesByLocation.get(location.id) ?? []).find((zone) => zone.id === d.zone_id);
+                          return assignedZone ? `${assignedZone.location_name} — ${assignedZone.name}` : "Unassigned";
+                        })()
+                      : "Unassigned"}
+                  </span>
+                </label>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

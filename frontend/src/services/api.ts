@@ -89,6 +89,8 @@ export interface DeviceDto {
   default_config: Record<string, unknown>;
   zone_id: string | null;
   location_id: string | null;
+  state?: "off" | "idle" | "running" | "error" | "maintenance";
+  allowed_commands?: string[];
 }
 
 export interface LocationDto {
