@@ -1,5 +1,11 @@
 import uuid
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
+
+
+class DeviceTransitionDto(BaseModel):
+    target: str
+
 
 class DeviceDto(BaseModel):
     id: uuid.UUID
@@ -10,3 +16,5 @@ class DeviceDto(BaseModel):
     default_config: dict
     zone_id: uuid.UUID | None = None
     location_id: uuid.UUID | None = None
+    state: str = "idle"
+    allowed_commands: list[str] = Field(default_factory=list)

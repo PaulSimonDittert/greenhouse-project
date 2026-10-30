@@ -1,9 +1,10 @@
 import uuid
 
 from sqlalchemy.orm import Session
-from domain.sensors.entity import Sensor
+
 from domain.devices.entity import Device
-from infrastructure.persistence.models import DeviceRow
+from domain.sensors.entity import Sensor
+from infrastructure.persistence.models import ActuatorStateRow, DeviceRow
 
 
 def _device_from_row(row: DeviceRow) -> Device:
@@ -76,13 +77,17 @@ class DeviceRepository:
             )
             rows.append(row)
             self.db.add(row)
-        
+
         self.db.commit()
-        
+
         result = []
         for row, d in zip(rows, devices):
             self.db.refresh(row)
+            if d.role == "actuator":
+                state_row = ActuatorStateRow(device_id=row.id, state="idle")
+                self.db.add(state_row)
             result.append(_device_from_row(row))
+        self.db.commit()
         return result
 
     def get_device(self, device_id: uuid.UUID) -> Device | None:
