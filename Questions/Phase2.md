@@ -82,21 +82,19 @@
 > [!NOTE]
 > ***Your Answer***
 >
-> The simple factory is one if/elif block, which is "good enough" in smaller projects where the type of objects do not change that much. 
-> The reason we still implement the polymorphic creators is because there are still a lot of Phases ahead of us, therefore making the project futureproof. We know that the project will be heavily expanded uppon, and we therefore prepare for that. 
+>The simple factory is one if/elif block, which is "good enough" in smaller projects where the type of objects do not change that much. 
+>The reason we still implement the polymorphic creators is because there are still a lot of Phases ahead of us, therefore making the project futureproof. We know that the project will be heavily expanded uppon, and we therefore prepare for that. 
 
 9. Contrast Factory Method with **Abstract Factory** (Phase 3). Factory Method answers which question? Abstract Factory answers which different question? Why is Factory Method enough for Phase 2 sensors?
 
 > [!NOTE]
 > ***Your Answer***
->
-> The Factory Methode answers the question of "How do I create one specific product?", while the Absstract Factory answers the questions of "How do I create a family of related products?(different sensors)"
-> The Factory Method is enough for Phase 2 because we are currently only creating isolated and individual sensors and no "bigger" families/groups.
+>The Factory Methode answers the question of "How do I create one specific product?", while the Absstract Factory answers the questions of "How do I create a family of related products?(different sensors)"
+>The Factory Method is enough for Phase 2 because we are currently only creating isolated and individual sensors and no "bigger" families/groups.
 
 10. A classmate puts SQLAlchemy session commits (or FastAPI request parsing) **inside** a concrete creator. Why is that a trap? Where should persistence and HTTP stay instead?
 
 > [!NOTE]
 > ***Your Answer***
->
-> That is a trap because it destroys the seperation of ours layors. It woudl destroy the testing, because a DB connection would be required for it at all times. 
-> Persistance belongs inside the infrastructure layer and HTTP parsing belongs inside the API layer.
+>That is a trap because it destroys the seperation of ours layors. It woudl destroy the testing, because a DB connection would be required for it at all times. 
+>Persistance belongs inside the infrastructure layer and HTTP parsing belongs inside the API layer.
