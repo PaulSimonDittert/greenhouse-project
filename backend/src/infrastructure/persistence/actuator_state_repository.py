@@ -16,6 +16,9 @@ class ActuatorStateRepository:
             return None
         return row.state
 
+    def get_row(self, device_id: uuid.UUID) -> ActuatorStateRow | None:
+        return self.db.query(ActuatorStateRow).filter(ActuatorStateRow.device_id == device_id).one_or_none()
+
     def ensure_for_device(self, device_id: uuid.UUID, *, default_state: str = "idle") -> str:
         if default_state not in VALID_STATES:
             raise ValueError(f"Unknown actuator state: {default_state}")
