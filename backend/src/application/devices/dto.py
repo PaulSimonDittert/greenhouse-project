@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DeviceTransitionDto(BaseModel):
@@ -18,3 +19,25 @@ class DeviceDto(BaseModel):
     location_id: uuid.UUID | None = None
     state: str = "idle"
     allowed_commands: list[str] = Field(default_factory=list)
+
+
+class ActuatorApplyRequest(BaseModel):
+    command: str
+    payload: dict = Field(default_factory=dict)
+
+
+class ActuatorApplyResultDto(BaseModel):
+    success: bool
+    policy_applied: list[str]
+    message: str | None
+
+
+class ActuatorExecutionDto(BaseModel):
+    id: uuid.UUID
+    device_id: uuid.UUID
+    success: bool
+    policy_applied: list[str]
+    message: str | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

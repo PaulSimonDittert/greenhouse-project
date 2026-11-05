@@ -4,6 +4,7 @@ import DeviceList from "../components/devices/DeviceList";
 import LocationConfiguration from "../components/locations/LocationConfiguration";
 import StrategyPanel from "../features/automation/StrategyPanel";
 import OverviewPanel from "../components/overview/OverviewPanel";
+import ExecutionLog from "../features/actuators/ExecutionLog";
 
 export default function DashboardPage() {
   const [configurationRevision, setConfigurationRevision] = useState(0);
@@ -16,6 +17,7 @@ export default function DashboardPage() {
         <LocationConfiguration onLocationsChanged={() => setConfigurationRevision((revision) => revision + 1)} />
         <StrategyPanel />
         <OverviewPanel />
+        <ExecutionLog />
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <h3 className="font-medium text-gray-300">Controls</h3>
           <p className="text-sm text-gray-500 mt-1">Placeholder for controls</p>

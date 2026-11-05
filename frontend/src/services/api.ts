@@ -93,6 +93,41 @@ export interface DeviceDto {
   allowed_commands?: string[];
 }
 
+export interface ActuatorExecutionDto {
+  id: string;
+  device_id: string;
+  success: boolean;
+  policy_applied: string[];
+  message: string | null;
+  created_at: string;
+}
+
+export interface ActuatorApplyResultDto {
+  success: boolean;
+  policy_applied: string[];
+  message: string | null;
+}
+
+export async function fetchActuatorExecutions(limit = 20): Promise<ActuatorExecutionDto[]> {
+  const response = await fetch(`${API_BASE_URL}/api/actuators/executions?limit=${limit}`);
+  if (!response.ok) throw await apiError(response, "Failed to load actuator executions");
+  return response.json();
+}
+
+export async function applyActuatorCommand(
+  deviceId: string,
+  command: string,
+  payload: Record<string, unknown> = {},
+): Promise<ActuatorApplyResultDto> {
+  const response = await fetch(`${API_BASE_URL}/api/actuators/${deviceId}/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ command, payload }),
+  });
+  if (!response.ok) throw await apiError(response, "Failed to apply actuator command");
+  return response.json();
+}
+
 export interface LocationDto {
   id: string;
   name: string;

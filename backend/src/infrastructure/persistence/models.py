@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Text,
     desc,
     text,
 )
@@ -114,6 +115,10 @@ class ActuatorStateRow(Base):
 class ActuatorExecutionLogRow(Base):
     __tablename__ = "actuator_execution_log"
 
+    __table_args__ = (
+        Index("ix_actuator_execution_log_created_at", "created_at"),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -128,7 +133,7 @@ class ActuatorExecutionLogRow(Base):
     )
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     policy_applied: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
-    message: Mapped[str | None] = mapped_column(String, nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
