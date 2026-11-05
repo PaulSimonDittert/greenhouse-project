@@ -1,4 +1,5 @@
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -19,8 +20,8 @@ router = APIRouter(prefix="/api/actuators", tags=["actuators"])
 
 @router.get("/executions", response_model=list[ActuatorExecutionDto])
 def list_actuator_executions(
+    db: Annotated[Session, Depends(get_db)],
     limit: int = Query(default=20, ge=1, le=100),
-    db: Session = Depends(get_db),
 ):
     return ActuatorExecutionService(db).list_recent(limit)
 
@@ -29,7 +30,7 @@ def list_actuator_executions(
 def apply_actuator_command(
     device_id: uuid.UUID,
     payload: ActuatorApplyRequest,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     service = ActuatorExecutionService(db)
     try:

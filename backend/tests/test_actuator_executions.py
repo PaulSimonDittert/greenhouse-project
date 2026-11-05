@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -51,7 +51,7 @@ def test_apply_and_list_actuator_executions(api_client: TestClient, test_databas
     from infrastructure.persistence.models import ActuatorStateRow, DeviceRow
 
     device_id = uuid.uuid4()
-    stale_time = datetime.now(timezone.utc) - timedelta(minutes=31)
+    stale_time = datetime.now(UTC) - timedelta(minutes=31)
     with test_database() as session:
         session.add(
             DeviceRow(
@@ -89,7 +89,7 @@ def test_apply_and_list_actuator_executions(api_client: TestClient, test_databas
         state = session.get(ActuatorStateRow, device_id)
         assert state is not None
         state.state = "idle"
-        state.updated_at = datetime.now(timezone.utc)
+        state.updated_at = datetime.now(UTC)
         session.commit()
 
     succeeded = api_client.post(

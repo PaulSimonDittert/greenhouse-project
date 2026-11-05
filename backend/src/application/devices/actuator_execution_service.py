@@ -1,5 +1,7 @@
 import uuid
 
+from sqlalchemy.orm import Session
+
 from application.devices.dto import ActuatorApplyResultDto, ActuatorExecutionDto
 from domain.devices.entity import Device
 from infrastructure.adapters.actuators.logging_decorator import LoggingActuatorDecorator
@@ -10,8 +12,9 @@ from infrastructure.adapters.actuators.max_runtime_decorator import (
 from infrastructure.adapters.actuators.simulation import SimulationActuatorAdapter
 from infrastructure.persistence.actuator_state_repository import ActuatorStateRepository
 from infrastructure.persistence.device_repository import DeviceRepository
-from infrastructure.persistence.execution_log_repository import ActuatorExecutionLogRepository
-from sqlalchemy.orm import Session
+from infrastructure.persistence.execution_log_repository import (
+    ActuatorExecutionLogRepository,
+)
 
 
 class ActuatorDeviceNotFoundError(LookupError):

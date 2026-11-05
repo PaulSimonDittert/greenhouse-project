@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, timezone
-from typing import Any
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from domain.actuators.ports import ActuatorPort
 from infrastructure.persistence.actuator_state_repository import ActuatorStateRepository
@@ -28,7 +28,7 @@ class MaxRunTimeActuatorDecorator(ActuatorPort):
     def apply(self, device_id: uuid.UUID, command: str, payload: dict[str, Any]) -> None:
         row = self.state_repository.get_row(device_id)
         if row is not None and row.state == "running":
-            cutoff = datetime.now(timezone.utc) - timedelta(minutes=self.timeout_minutes)
+            cutoff = datetime.now(UTC) - timedelta(minutes=self.timeout_minutes)
             if row.updated_at <= cutoff:
                 raise MaxRunTimeExceededError(
                     "Max run time exceeded",

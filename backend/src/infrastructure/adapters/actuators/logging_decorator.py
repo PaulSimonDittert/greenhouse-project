@@ -1,9 +1,13 @@
-from typing import Any
 import uuid
+from typing import Any
 
 from domain.actuators.ports import ActuatorPort
-from infrastructure.adapters.actuators.max_runtime_decorator import MaxRunTimeExceededError
-from infrastructure.persistence.execution_log_repository import ActuatorExecutionLogRepository
+from infrastructure.adapters.actuators.max_runtime_decorator import (
+    MaxRunTimeExceededError,
+)
+from infrastructure.persistence.execution_log_repository import (
+    ActuatorExecutionLogRepository,
+)
 
 
 class LoggingActuatorDecorator(ActuatorPort):
