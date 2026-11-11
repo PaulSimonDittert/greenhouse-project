@@ -63,7 +63,7 @@ class FakeCommandLogRepository:
         return row
 
 
-def test_rejected_command_is_logged_without_state_change():
+def test_illegal_command_rejected_logged():
     device_id = uuid.uuid4()
     state_repo = FakeStateRepository("running")
     command_log = FakeCommandLogRepository()
@@ -81,7 +81,7 @@ def test_rejected_command_is_logged_without_state_change():
     assert state_repo.state == "running"
 
 
-def test_start_pump_transitions_to_running_and_logs_success():
+def test_start_pump_transitions_to_running():
     device_id = uuid.uuid4()
     state_repo = FakeStateRepository("idle")
     command_log = FakeCommandLogRepository()
