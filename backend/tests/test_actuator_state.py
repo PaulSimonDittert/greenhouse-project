@@ -46,9 +46,17 @@ def test_illegal_transitions_are_rejected(start: str, target: str) -> None:
 
 
 def test_allowed_commands_follow_current_state() -> None:
-    assert ActuatorContext("idle").allowed_commands == ["start_pump"]
-    assert ActuatorContext("running").allowed_commands == ["stop_pump"]
+    assert ActuatorContext("idle").allowed_commands == ["start_pump", "set_light_level"]
+    assert ActuatorContext("running").allowed_commands == ["stop_pump", "set_light_level"]
     assert ActuatorContext("error").allowed_commands == ["reset"]
+
+
+def test_allowed_commands_are_filtered_by_actuator_type() -> None:
+    assert ActuatorContext("idle").allowed_commands_for("water_pump") == ["start_pump"]
+    assert ActuatorContext("running").allowed_commands_for("water_pump") == ["stop_pump"]
+    assert ActuatorContext("idle").allowed_commands_for("grow_light") == ["set_light_level"]
+    assert ActuatorContext("running").allowed_commands_for("grow_light") == ["set_light_level"]
+    assert ActuatorContext("idle").allowed_commands_for("unknown_actuator") == []
 
 
 class FakeDeviceRepository:

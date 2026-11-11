@@ -96,7 +96,9 @@ def list_zone_devices(location_id: uuid.UUID, zone_id: uuid.UUID, db: Session = 
                 display_name=row.display_name,
                 default_config=row.default_config,
                 state=states.get(row.id, "idle") if row.role == "actuator" else "idle",
-                allowed_commands=ActuatorContext(states.get(row.id, "idle")).allowed_commands if row.role == "actuator" else [],
+                allowed_commands=ActuatorContext(states.get(row.id, "idle")).allowed_commands_for(row.device_type)
+                if row.role == "actuator"
+                else [],
             )
             for row in device_rows
         ]

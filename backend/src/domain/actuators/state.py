@@ -10,10 +10,15 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 
 ALLOWED_COMMANDS: dict[str, list[str]] = {
     "off": ["start_pump"],
-    "idle": ["start_pump"],
-    "running": ["stop_pump"],
+    "idle": ["start_pump", "set_light_level"],
+    "running": ["stop_pump", "set_light_level"],
     "error": ["reset"],
     "maintenance": ["resume_operation"],
+}
+
+COMMANDS_BY_DEVICE_TYPE: dict[str, set[str]] = {
+    "water_pump": {"start_pump", "stop_pump"},
+    "grow_light": {"set_light_level"},
 }
 
 
@@ -21,10 +26,14 @@ class IllegalTransitionError(ValueError):
     """Raised when an actuator transition is not allowed for the current state."""
 
 
-def get_allowed_commands(state: str) -> list[str]:
+def get_allowed_commands(state: str, device_type: str | None = None) -> list[str]:
     if state not in VALID_STATES:
         raise ValueError(f"Unknown actuator state: {state}")
-    return list(ALLOWED_COMMANDS[state])
+    commands = ALLOWED_COMMANDS[state]
+    if device_type is None:
+        return list(commands)
+    device_commands = COMMANDS_BY_DEVICE_TYPE.get(device_type, set())
+    return [command for command in commands if command in device_commands]
 
 
 def can_transition(current_state: str, target_state: str) -> bool:

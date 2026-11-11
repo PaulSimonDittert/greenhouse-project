@@ -72,13 +72,16 @@ class CommandService:
         except UnknownCommandError:
             raise
 
-        if command_type not in ActuatorContext(current_state).allowed_commands:
+        if command_type not in ActuatorContext(current_state).allowed_commands_for(device.device_type):
             return self._command_log.insert(
                 command_type=command_type,
                 device_id=device_id,
                 payload=payload or {},
                 status="rejected",
-                error_message=f"Command '{command_type}' is not allowed in state '{current_state}'.",
+                error_message=(
+                    f"Command '{command_type}' is not allowed for device type "
+                    f"'{device.device_type}' in state '{current_state}'."
+                ),
             )
 
         port = build_actuator_port(

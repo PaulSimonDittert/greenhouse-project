@@ -8,7 +8,11 @@ def device_to_dto(device: Device, state: str | None = None, allowed_commands: li
         raise ValueError("Cannot map unpersisted device to DTO")
 
     actuator_state = state if state is not None else "idle"
-    commands = allowed_commands if allowed_commands is not None else ActuatorContext(actuator_state).allowed_commands
+    commands = (
+        allowed_commands
+        if allowed_commands is not None
+        else ActuatorContext(actuator_state).allowed_commands_for(device.device_type)
+    )
 
     return DeviceDto(
         id=device.id,
@@ -30,7 +34,9 @@ def devices_to_dtos(devices: list[Device], states: dict[object, str] | None = No
         device_to_dto(
             d,
             state=state_lookup.get(d.id),
-            allowed_commands=ActuatorContext(state_lookup.get(d.id) or "idle").allowed_commands if d.role == "actuator" else [],
+            allowed_commands=ActuatorContext(state_lookup.get(d.id) or "idle").allowed_commands_for(d.device_type)
+            if d.role == "actuator"
+            else [],
         )
         for d in devices
     ]

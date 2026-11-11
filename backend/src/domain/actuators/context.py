@@ -20,6 +20,9 @@ class ActuatorContext:
     def allowed_commands(self) -> list[str]:
         return get_allowed_commands(self.state)
 
+    def allowed_commands_for(self, device_type: str) -> list[str]:
+        return get_allowed_commands(self.state, device_type)
+
     def transition(self, target: str) -> str:
         if not can_transition(self.state, target):
             raise IllegalTransitionError(
