@@ -108,6 +108,41 @@ export interface ActuatorApplyResultDto {
   message: string | null;
 }
 
+export interface CommandLogDto {
+  id: string;
+  command_type: string;
+  device_id: string;
+  payload: Record<string, unknown> | null;
+  status: "success" | "failed" | "rejected";
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface CommandRequestDto {
+  command_type: string;
+  device_id: string;
+  payload?: Record<string, unknown>;
+}
+
+export async function fetchCommandLog(limit = 50): Promise<CommandLogDto[]> {
+  const response = await fetch(`${API_BASE_URL}/api/commands?limit=${limit}`);
+  if (!response.ok) throw await apiError(response, "Failed to load command history");
+  return response.json();
+}
+
+export async function submitCommand(request: CommandRequestDto): Promise<CommandLogDto> {
+  const response = await fetch(`${API_BASE_URL}/api/commands`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to submit command");
+  }
+  return response.json();
+}
+
 export async function fetchActuatorExecutions(limit = 20): Promise<ActuatorExecutionDto[]> {
   const response = await fetch(`${API_BASE_URL}/api/actuators/executions?limit=${limit}`);
   if (!response.ok) throw await apiError(response, "Failed to load actuator executions");

@@ -4,6 +4,7 @@ import DeviceList from "../components/devices/DeviceList";
 import LocationConfiguration from "../components/locations/LocationConfiguration";
 import StrategyPanel from "../features/automation/StrategyPanel";
 import OverviewPanel from "../components/overview/OverviewPanel";
+import CommandPanel from "../components/commands/CommandPanel";
 import ExecutionLog from "../features/actuators/ExecutionLog";
 
 export default function DashboardPage() {
@@ -18,11 +19,7 @@ export default function DashboardPage() {
         <StrategyPanel />
         <OverviewPanel />
         <ExecutionLog />
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h3 className="font-medium text-gray-300">Controls</h3>
-          <p className="text-sm text-gray-500 mt-1">Placeholder for controls</p>
-          <div className="mt-4 text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded inline-block">Placeholder</div>
-        </div>
+        <CommandPanel />
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <h3 className="font-medium text-gray-300">Events</h3>
           <p className="text-sm text-gray-500 mt-1">Placeholder for events</p>
