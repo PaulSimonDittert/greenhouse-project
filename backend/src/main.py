@@ -9,7 +9,7 @@ from scalar_fastapi import get_scalar_api_reference
 from application.readings.sampler import SimulationSampler
 from infrastructure.db import SessionLocal
 from infrastructure.settings import settings
-from interfaces.api import automation, health, sensors, devices, locations, overview, actuators
+from interfaces.api import automation, commands, health, sensors, devices, locations, overview, actuators
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,7 @@ app.include_router(devices.router)
 app.include_router(locations.router)
 app.include_router(overview.router)
 app.include_router(automation.router)
+app.include_router(commands.router)
 app.include_router(actuators.router)
 
 @app.get("/")
