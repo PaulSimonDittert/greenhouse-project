@@ -34,7 +34,7 @@ def test_migrations_upgrade_empty_database_to_head():
             )).scalars())
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
 
-        assert {"devices", "locations", "zones", "alembic_version"}.issubset(tables)
+        assert {"devices", "locations", "zones", "alerts", "alembic_version"}.issubset(tables)
         assert revision == expected_head
     finally:
         engine.dispose()
