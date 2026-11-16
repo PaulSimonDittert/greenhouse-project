@@ -1,10 +1,34 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from sqlalchemy.orm import Session
 
+from domain.events.bus import EventBus
 from domain.events.events import CommandFailed, ReadingCreated, ThresholdCrossed
 from infrastructure.persistence.alert_repository import AlertRepository
 from infrastructure.persistence.models import DeviceRow, ZoneRow
+
+
+def subscribe_alert_persistence(
+    event_bus: EventBus,
+    session_factory: Callable[[], Session],
+) -> None:
+    def on_reading_created(event: ReadingCreated) -> None:
+        with session_factory() as db:
+            AlertPersistenceSubscriber(db).on_reading_created(event)
+
+    def on_threshold_crossed(event: ThresholdCrossed) -> None:
+        with session_factory() as db:
+            AlertPersistenceSubscriber(db).on_threshold_crossed(event)
+
+    def on_command_failed(event: CommandFailed) -> None:
+        with session_factory() as db:
+            AlertPersistenceSubscriber(db).on_command_failed(event)
+
+    event_bus.subscribe(ReadingCreated, on_reading_created)
+    event_bus.subscribe(ThresholdCrossed, on_threshold_crossed)
+    event_bus.subscribe(CommandFailed, on_command_failed)
 
 
 class AlertPersistenceSubscriber:

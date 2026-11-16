@@ -3,15 +3,16 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from application.readings.service import ReadingIngest
+from domain.events.bus import EventBus
 from infrastructure.persistence.device_repository import DeviceRepository
 from infrastructure.persistence.reading_repository import ReadingRepository
 
 
 class SimulationSampler:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, *, event_bus: EventBus | None = None):
         self._devices = DeviceRepository(db)
         self._readings = ReadingRepository(db)
-        self._ingest = ReadingIngest(db)
+        self._ingest = ReadingIngest(db, event_bus=event_bus)
 
     def run_once(self, now: datetime) -> None:
         if now.tzinfo is None or now.utcoffset() is None:

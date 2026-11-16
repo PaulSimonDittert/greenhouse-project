@@ -8,9 +8,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from application.alerts.subscribers import AlertPersistenceSubscriber
+from application.alerts.subscribers import subscribe_alert_persistence
 from application.readings.service import ReadingIngest
 from domain.events.bus import EventBus
-from domain.events.events import ReadingCreated
+from domain.events.events import ReadingCreated, ThresholdCrossed
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -35,8 +36,16 @@ def test_database():
 
 
 @pytest.fixture
-def api_client(test_database):
+def event_bus(test_database):
+    bus = EventBus()
+    subscribe_alert_persistence(bus, test_database)
+    return bus
+
+
+@pytest.fixture
+def api_client(test_database, event_bus):
     from infrastructure.db import get_db
+    from interfaces.api.dependencies import get_event_bus
     from main import app
 
     def override_get_db():
@@ -44,12 +53,14 @@ def api_client(test_database):
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_event_bus] = lambda: event_bus
     client = TestClient(app)
     try:
         yield client
     finally:
         client.close()
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_event_bus, None)
 
 
 def test_read_inserts_sensor_reading(api_client: TestClient):
@@ -115,7 +126,7 @@ def test_sampler_respects_interval_and_tracking(test_database):
         session.commit()
 
         start = datetime(2026, 9, 30, tzinfo=timezone.utc)
-        sampler = SimulationSampler(session)
+        sampler = SimulationSampler(session, event_bus=EventBus())
         sampler.run_once(start)
         assert session.query(ReadingRow).filter_by(device_id=simulation_id).count() == 1
 
@@ -189,7 +200,7 @@ def test_reading_ingest_publishes_event_for_tracked_device(test_database):
 
 def test_reading_ingest_skips_publish_when_tracking_disabled(test_database):
     from domain.sensors.reading import Reading
-    from infrastructure.persistence.models import DeviceRow, LocationRow, ZoneRow
+    from infrastructure.persistence.models import DeviceRow, LocationRow, ReadingRow, ZoneRow
 
     location_id = uuid.uuid4()
     zone_id = uuid.uuid4()
@@ -240,6 +251,7 @@ def test_reading_ingest_skips_publish_when_tracking_disabled(test_database):
         )
 
         assert events == []
+        assert session.query(ReadingRow).filter_by(device_id=sensor_id).count() == 1
 
 
 def test_alert_persistence_subscriber_inserts_threshold_alert(test_database):
@@ -287,8 +299,6 @@ def test_alert_persistence_subscriber_inserts_threshold_alert(test_database):
                 unit="vwc",
                 source="manual",
                 recorded_at=datetime(2026, 9, 30, 10, 15, tzinfo=timezone.utc),
-                location_id=location_id,
-                zone_id=zone_id,
             )
         )
 
@@ -301,16 +311,58 @@ def test_alert_persistence_subscriber_inserts_threshold_alert(test_database):
         assert "below the low threshold" in stored.message
 
 
-def test_alerts_api_filters_by_status_and_zone(test_database):
-    from infrastructure.db import get_db
-    from infrastructure.persistence.models import AlertRow, DeviceRow, LocationRow, ZoneRow
-    from main import app
+def test_alert_subscriber_keeps_zone_null_for_unassigned_device(test_database):
+    from infrastructure.persistence.models import AlertRow, DeviceRow
+
+    device_id = uuid.uuid4()
+    bus = EventBus()
+
+    with test_database() as session:
+        session.add(
+            DeviceRow(
+                id=device_id,
+                device_type="moisture_sensor",
+                role="sensor",
+                device_family="simulation",
+                display_name="Unassigned sensor",
+                default_config={"protocol": "simulation"},
+                sampling_interval_seconds=300,
+                tracking_enabled=True,
+                zone_id=None,
+                location_id=None,
+            )
+        )
+        session.commit()
+
+        AlertPersistenceSubscriber(session).subscribe(bus)
+        bus.publish(
+            ThresholdCrossed(
+                device_id=device_id,
+                value=0.1,
+                threshold=0.2,
+            )
+        )
+
+        stored = session.query(AlertRow).filter_by(device_id=device_id).one()
+        assert stored.location_id is None
+        assert stored.zone_id is None
+
+
+def test_published_reading_alerts_are_listed_and_zone_filtered(
+    test_database,
+    api_client: TestClient,
+    event_bus: EventBus,
+):
+    from domain.sensors.reading import Reading
+    from infrastructure.persistence.alert_repository import AlertRepository
+    from infrastructure.persistence.models import DeviceRow, LocationRow, ZoneRow
 
     location_id = uuid.uuid4()
     zone_id = uuid.uuid4()
-    other_zone = uuid.uuid4()
-    device_id = uuid.uuid4()
-    other_device_id = uuid.uuid4()
+    other_zone_id = uuid.uuid4()
+    first_device_id = uuid.uuid4()
+    second_device_id = uuid.uuid4()
+    recorded_at = datetime(2026, 9, 30, 10, 15, tzinfo=timezone.utc)
 
     with test_database() as session:
         session.add(LocationRow(id=location_id, name="Filtered location"))
@@ -324,7 +376,7 @@ def test_alerts_api_filters_by_status_and_zone(test_database):
                     moisture_threshold_high=0.5,
                 ),
                 ZoneRow(
-                    id=other_zone,
+                    id=other_zone_id,
                     location_id=location_id,
                     name="Other zone",
                     moisture_threshold_low=0.2,
@@ -333,11 +385,10 @@ def test_alerts_api_filters_by_status_and_zone(test_database):
             ]
         )
         session.commit()
-
         session.add_all(
             [
                 DeviceRow(
-                    id=device_id,
+                    id=first_device_id,
                     device_type="moisture_sensor",
                     role="sensor",
                     device_family="simulation",
@@ -349,7 +400,7 @@ def test_alerts_api_filters_by_status_and_zone(test_database):
                     location_id=location_id,
                 ),
                 DeviceRow(
-                    id=other_device_id,
+                    id=second_device_id,
                     device_type="moisture_sensor",
                     role="sensor",
                     device_family="simulation",
@@ -357,53 +408,68 @@ def test_alerts_api_filters_by_status_and_zone(test_database):
                     default_config={"protocol": "simulation"},
                     sampling_interval_seconds=300,
                     tracking_enabled=True,
-                    zone_id=other_zone,
+                    zone_id=other_zone_id,
                     location_id=location_id,
                 ),
             ]
         )
         session.commit()
 
-        session.add(
-            AlertRow(
-                location_id=location_id,
-                zone_id=zone_id,
-                device_id=device_id,
-                severity="warning",
-                message="Threshold crossed in zone one",
-                event_type="threshold.crossed",
-                status="active",
-            )
+        ingest = ReadingIngest(session, event_bus=event_bus)
+        ingest.record(
+            first_device_id,
+            Reading(
+                device_id=first_device_id,
+                value=0.1,
+                unit="vwc",
+                source="manual",
+                recorded_at=recorded_at,
+            ),
         )
-        session.add(
-            AlertRow(
-                location_id=location_id,
-                zone_id=other_zone,
-                device_id=other_device_id,
-                severity="critical",
-                message="Another alert",
-                event_type="command.failed",
-                status="active",
-            )
+        ingest.record(
+            second_device_id,
+            Reading(
+                device_id=second_device_id,
+                value=0.15,
+                unit="vwc",
+                source="manual",
+                recorded_at=recorded_at,
+            ),
         )
-        session.commit()
+        AlertRepository(session).insert(
+            location_id=location_id,
+            zone_id=other_zone_id,
+            device_id=second_device_id,
+            severity="info",
+            message="Resolved alert",
+            event_type="threshold.crossed",
+            status="resolved",
+        )
 
-    def override_get_db():
-        with test_database() as session:
-            yield session
+    all_alerts = api_client.get(
+        "/api/alerts",
+        params={"status": "active", "location_id": str(location_id)},
+    )
+    assert all_alerts.status_code == 200, all_alerts.text
+    assert len(all_alerts.json()) == 2
 
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-    try:
-        response = client.get(
-            "/api/alerts",
-            params={"status": "active", "location_id": str(location_id), "zone_id": str(zone_id)},
-        )
-        assert response.status_code == 200, response.text
-        payload = response.json()
-        assert len(payload) == 1
-        assert payload[0]["zone_id"] == str(zone_id)
-        assert payload[0]["event_type"] == "threshold.crossed"
-    finally:
-        client.close()
-        app.dependency_overrides.pop(get_db, None)
+    resolved_alerts = api_client.get(
+        "/api/alerts",
+        params={"status": "resolved", "location_id": str(location_id)},
+    )
+    assert resolved_alerts.status_code == 200, resolved_alerts.text
+    assert len(resolved_alerts.json()) == 1
+
+    filtered_alerts = api_client.get(
+        "/api/alerts",
+        params={
+            "status": "active",
+            "location_id": str(location_id),
+            "zone_id": str(zone_id),
+        },
+    )
+    assert filtered_alerts.status_code == 200, filtered_alerts.text
+    payload = filtered_alerts.json()
+    assert len(payload) == 1
+    assert payload[0]["zone_id"] == str(zone_id)
+    assert payload[0]["event_type"] == "threshold.crossed"

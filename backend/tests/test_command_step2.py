@@ -79,6 +79,7 @@ def test_illegal_command_rejected_logged():
         states=state_repo,
         executions=FakeExecutionLogRepository(),
         command_log=command_log,
+        event_bus=EventBus(),
     )
 
     service.execute(device_id, "start_pump")
@@ -98,6 +99,7 @@ def test_start_pump_transitions_to_running():
         states=state_repo,
         executions=execution_log,
         command_log=command_log,
+        event_bus=EventBus(),
     )
 
     service.execute(device_id, "start_pump", {"mode": "manual"})
@@ -118,6 +120,7 @@ def test_set_light_level_succeeds_without_changing_running_state():
         states=state_repo,
         executions=execution_log,
         command_log=command_log,
+        event_bus=EventBus(),
     )
 
     service.execute(device_id, "set_light_level", {"level": 1})
@@ -139,6 +142,7 @@ def test_pump_command_is_rejected_for_grow_light():
         states=state_repo,
         executions=execution_log,
         command_log=command_log,
+        event_bus=EventBus(),
     )
 
     service.execute(device_id, "start_pump")

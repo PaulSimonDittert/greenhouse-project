@@ -6,15 +6,21 @@ from sqlalchemy.orm import Session
 from application.commands.dto import CommandLogDto, CommandRequestDto
 from application.commands.service import CommandService, DeviceNotFoundError
 from domain.commands.invoker import UnknownCommandError
+from domain.events.bus import EventBus
 from infrastructure.db import get_db
 from infrastructure.persistence.command_log_repository import CommandLogRepository
+from interfaces.api.dependencies import get_event_bus
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 
 
 @router.post("", response_model=CommandLogDto)
-def create_command(payload: CommandRequestDto, db: Session = Depends(get_db)):
-    service = CommandService(db)
+def create_command(
+    payload: CommandRequestDto,
+    db: Session = Depends(get_db),
+    event_bus: EventBus = Depends(get_event_bus),
+):
+    service = CommandService(db, event_bus=event_bus)
     try:
         row = service.execute(payload.device_id, payload.command_type, payload.payload)
     except DeviceNotFoundError as error:

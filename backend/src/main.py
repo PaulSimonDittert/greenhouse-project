@@ -6,17 +6,21 @@ from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
+from application.alerts.subscribers import subscribe_alert_persistence
 from application.readings.sampler import SimulationSampler
+from domain.events.bus import default_event_bus
 from infrastructure.db import SessionLocal
 from infrastructure.settings import settings
 from interfaces.api import alerts, automation, commands, health, sensors, devices, locations, overview, actuators
 
 logger = logging.getLogger(__name__)
+event_bus = default_event_bus
+subscribe_alert_persistence(event_bus, SessionLocal)
 
 
 def _sample_once() -> None:
     with SessionLocal() as db:
-        SimulationSampler(db).run_once(datetime.now(timezone.utc))
+        SimulationSampler(db, event_bus=event_bus).run_once(datetime.now(timezone.utc))
 
 
 async def _simulation_sampler_loop() -> None:
@@ -50,6 +54,7 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+app.state.event_bus = event_bus
 
 app.add_middleware(
     CORSMiddleware,

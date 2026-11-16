@@ -7,6 +7,8 @@ from infrastructure.db import get_db
 from application.readings.dto import ReadingDto
 from application.readings.service import DeviceNotFoundError, ReadingIngest
 from application.sensors.service import SensorService
+from domain.events.bus import EventBus
+from interfaces.api.dependencies import get_event_bus
 
 router = APIRouter(prefix="/api/sensors", tags=["sensors"])
 
@@ -37,8 +39,12 @@ def list_sensors(db: Session = Depends(get_db)):
 
 
 @router.post("/{device_id}/read", response_model=ReadingDto, status_code=201)
-def read_sensor(device_id: uuid.UUID, db: Session = Depends(get_db)):
-    service = ReadingIngest(db)
+def read_sensor(
+    device_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    event_bus: EventBus = Depends(get_event_bus),
+):
+    service = ReadingIngest(db, event_bus=event_bus)
     try:
         return service.take_reading(device_id)
     except DeviceNotFoundError as error:
