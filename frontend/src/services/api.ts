@@ -39,6 +39,36 @@ export interface SamplingSettingsDto {
   tracking_enabled: boolean;
 }
 
+export interface AlertDto {
+  id: string;
+  location_id: string | null;
+  zone_id: string | null;
+  device_id: string | null;
+  severity: "info" | "warning" | "critical";
+  message: string;
+  event_type: string;
+  status: "active" | "resolved";
+  created_at: string;
+  acknowledged_at: string | null;
+}
+
+export async function fetchAlerts(options: {
+  status?: string;
+  location_id?: string;
+  zone_id?: string;
+  since?: string;
+} = {}): Promise<AlertDto[]> {
+  const params = new URLSearchParams();
+  if (options.status) params.set("status", options.status);
+  if (options.location_id) params.set("location_id", options.location_id);
+  if (options.zone_id) params.set("zone_id", options.zone_id);
+  if (options.since) params.set("since", options.since);
+
+  const response = await fetch(`${API_BASE_URL}/api/alerts${params.size ? `?${params.toString()}` : ""}`);
+  if (!response.ok) throw await apiError(response, "Failed to load alerts");
+  return response.json();
+}
+
 export async function fetchSensors(): Promise<SensorDto[]> {
   const res = await fetch(`${API_BASE_URL}/api/sensors`);
   if (!res.ok) throw new Error("Failed to fetch sensors");

@@ -5,6 +5,7 @@ import LocationConfiguration from "../components/locations/LocationConfiguration
 import StrategyPanel from "../features/automation/StrategyPanel";
 import OverviewPanel from "../components/overview/OverviewPanel";
 import CommandPanel from "../components/commands/CommandPanel";
+import EventFeed from "../components/events/EventFeed";
 import ExecutionLog from "../features/actuators/ExecutionLog";
 
 export default function DashboardPage() {
@@ -20,11 +21,7 @@ export default function DashboardPage() {
         <OverviewPanel />
         <ExecutionLog />
         <CommandPanel />
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h3 className="font-medium text-gray-300">Events</h3>
-          <p className="text-sm text-gray-500 mt-1">Placeholder for events</p>
-          <div className="mt-4 text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded inline-block">Placeholder</div>
-        </div>
+        <EventFeed />
       </div>
     </div>
   );

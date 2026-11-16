@@ -38,3 +38,22 @@ class AlertRepository:
         self.db.commit()
         self.db.refresh(row)
         return row
+
+    def list(
+        self,
+        *,
+        status: str | None = None,
+        location_id: uuid.UUID | None = None,
+        zone_id: uuid.UUID | None = None,
+        since: datetime | None = None,
+    ) -> list[AlertRow]:
+        query = self.db.query(AlertRow)
+        if status is not None:
+            query = query.filter(AlertRow.status == status)
+        if location_id is not None:
+            query = query.filter(AlertRow.location_id == location_id)
+        if zone_id is not None:
+            query = query.filter(AlertRow.zone_id == zone_id)
+        if since is not None:
+            query = query.filter(AlertRow.created_at >= since)
+        return query.order_by(AlertRow.created_at.desc()).all()

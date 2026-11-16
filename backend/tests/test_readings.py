@@ -299,3 +299,111 @@ def test_alert_persistence_subscriber_inserts_threshold_alert(test_database):
         assert stored.location_id == location_id
         assert stored.zone_id == zone_id
         assert "below the low threshold" in stored.message
+
+
+def test_alerts_api_filters_by_status_and_zone(test_database):
+    from infrastructure.db import get_db
+    from infrastructure.persistence.models import AlertRow, DeviceRow, LocationRow, ZoneRow
+    from main import app
+
+    location_id = uuid.uuid4()
+    zone_id = uuid.uuid4()
+    other_zone = uuid.uuid4()
+    device_id = uuid.uuid4()
+    other_device_id = uuid.uuid4()
+
+    with test_database() as session:
+        session.add(LocationRow(id=location_id, name="Filtered location"))
+        session.add_all(
+            [
+                ZoneRow(
+                    id=zone_id,
+                    location_id=location_id,
+                    name="Filtered zone",
+                    moisture_threshold_low=0.2,
+                    moisture_threshold_high=0.5,
+                ),
+                ZoneRow(
+                    id=other_zone,
+                    location_id=location_id,
+                    name="Other zone",
+                    moisture_threshold_low=0.2,
+                    moisture_threshold_high=0.5,
+                ),
+            ]
+        )
+        session.commit()
+
+        session.add_all(
+            [
+                DeviceRow(
+                    id=device_id,
+                    device_type="moisture_sensor",
+                    role="sensor",
+                    device_family="simulation",
+                    display_name="Primary sensor",
+                    default_config={"protocol": "simulation"},
+                    sampling_interval_seconds=300,
+                    tracking_enabled=True,
+                    zone_id=zone_id,
+                    location_id=location_id,
+                ),
+                DeviceRow(
+                    id=other_device_id,
+                    device_type="moisture_sensor",
+                    role="sensor",
+                    device_family="simulation",
+                    display_name="Secondary sensor",
+                    default_config={"protocol": "simulation"},
+                    sampling_interval_seconds=300,
+                    tracking_enabled=True,
+                    zone_id=other_zone,
+                    location_id=location_id,
+                ),
+            ]
+        )
+        session.commit()
+
+        session.add(
+            AlertRow(
+                location_id=location_id,
+                zone_id=zone_id,
+                device_id=device_id,
+                severity="warning",
+                message="Threshold crossed in zone one",
+                event_type="threshold.crossed",
+                status="active",
+            )
+        )
+        session.add(
+            AlertRow(
+                location_id=location_id,
+                zone_id=other_zone,
+                device_id=other_device_id,
+                severity="critical",
+                message="Another alert",
+                event_type="command.failed",
+                status="active",
+            )
+        )
+        session.commit()
+
+    def override_get_db():
+        with test_database() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    try:
+        response = client.get(
+            "/api/alerts",
+            params={"status": "active", "location_id": str(location_id), "zone_id": str(zone_id)},
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert len(payload) == 1
+        assert payload[0]["zone_id"] == str(zone_id)
+        assert payload[0]["event_type"] == "threshold.crossed"
+    finally:
+        client.close()
+        app.dependency_overrides.pop(get_db, None)

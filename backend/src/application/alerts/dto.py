@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -13,4 +15,5 @@ class AlertDto(BaseModel):
     message: str
     event_type: str
     status: str
-    created_at: str | None = None
+    created_at: datetime
+    acknowledged_at: datetime | None = None
