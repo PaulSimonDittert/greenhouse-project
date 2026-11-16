@@ -122,7 +122,7 @@ export default function EventFeed() {
         </label>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 max-h-80 space-y-3 overflow-y-auto overscroll-contain pr-2">
         {loading ? (
           <div className="text-sm text-gray-400">Loading alerts…</div>
         ) : alerts.length === 0 ? (
