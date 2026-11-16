@@ -7,6 +7,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from application.alerts.subscribers import AlertPersistenceSubscriber
+from application.readings.service import ReadingIngest
+from domain.events.bus import EventBus
+from domain.events.events import ReadingCreated
+
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL,
@@ -67,7 +72,6 @@ def test_read_inserts_sensor_reading(api_client: TestClient):
 
 def test_sampler_respects_interval_and_tracking(test_database):
     from application.readings.sampler import SimulationSampler
-    from domain.devices.entity import Device
     from infrastructure.persistence.models import DeviceRow, ReadingRow
 
     simulation_id = uuid.uuid4()
@@ -122,3 +126,176 @@ def test_sampler_respects_interval_and_tracking(test_database):
         assert session.query(ReadingRow).filter_by(device_id=simulation_id).count() == 2
         assert session.query(ReadingRow).filter_by(device_id=disabled_id).count() == 0
         assert session.query(ReadingRow).filter_by(device_id=mqtt_id).count() == 0
+
+
+def test_reading_ingest_publishes_event_for_tracked_device(test_database):
+    from domain.sensors.reading import Reading
+    from infrastructure.persistence.models import DeviceRow, LocationRow, ZoneRow
+
+    location_id = uuid.uuid4()
+    zone_id = uuid.uuid4()
+    sensor_id = uuid.uuid4()
+    bus = EventBus()
+    events = []
+    bus.subscribe(ReadingCreated, events.append)
+
+    with test_database() as session:
+        session.add(LocationRow(id=location_id, name="North Wing"))
+        session.add(
+            ZoneRow(
+                id=zone_id,
+                location_id=location_id,
+                name="Seed bed",
+                moisture_threshold_low=0.25,
+                moisture_threshold_high=0.5,
+            )
+        )
+        session.commit()
+
+        session.add(
+            DeviceRow(
+                id=sensor_id,
+                device_type="moisture_sensor",
+                role="sensor",
+                device_family="simulation",
+                display_name="Tracked sensor",
+                default_config={"protocol": "simulation"},
+                sampling_interval_seconds=300,
+                tracking_enabled=True,
+                zone_id=zone_id,
+                location_id=location_id,
+            )
+        )
+        session.commit()
+
+        service = ReadingIngest(session, event_bus=bus)
+        service.record(
+            sensor_id,
+            Reading(
+                device_id=sensor_id,
+                value=0.12,
+                unit="vwc",
+                source="manual",
+                recorded_at=datetime(2026, 9, 30, 10, 0, tzinfo=timezone.utc),
+            ),
+        )
+
+        assert len(events) == 1
+        assert events[0].device_id == sensor_id
+        assert events[0].zone_id == zone_id
+        assert events[0].location_id == location_id
+        assert events[0].event_type == "reading.created"
+
+
+def test_reading_ingest_skips_publish_when_tracking_disabled(test_database):
+    from domain.sensors.reading import Reading
+    from infrastructure.persistence.models import DeviceRow, LocationRow, ZoneRow
+
+    location_id = uuid.uuid4()
+    zone_id = uuid.uuid4()
+    sensor_id = uuid.uuid4()
+    bus = EventBus()
+    events = []
+    bus.subscribe(ReadingCreated, events.append)
+
+    with test_database() as session:
+        session.add(LocationRow(id=location_id, name="South Wing"))
+        session.add(
+            ZoneRow(
+                id=zone_id,
+                location_id=location_id,
+                name="Propagation",
+                moisture_threshold_low=0.25,
+                moisture_threshold_high=0.5,
+            )
+        )
+        session.commit()
+
+        session.add(
+            DeviceRow(
+                id=sensor_id,
+                device_type="moisture_sensor",
+                role="sensor",
+                device_family="simulation",
+                display_name="Untracked sensor",
+                default_config={"protocol": "simulation"},
+                sampling_interval_seconds=300,
+                tracking_enabled=False,
+                zone_id=zone_id,
+                location_id=location_id,
+            )
+        )
+        session.commit()
+
+        service = ReadingIngest(session, event_bus=bus)
+        service.record(
+            sensor_id,
+            Reading(
+                device_id=sensor_id,
+                value=0.10,
+                unit="vwc",
+                source="manual",
+                recorded_at=datetime(2026, 9, 30, 10, 5, tzinfo=timezone.utc),
+            ),
+        )
+
+        assert events == []
+
+
+def test_alert_persistence_subscriber_inserts_threshold_alert(test_database):
+    from infrastructure.persistence.models import AlertRow, DeviceRow, LocationRow, ZoneRow
+
+    location_id = uuid.uuid4()
+    zone_id = uuid.uuid4()
+    sensor_id = uuid.uuid4()
+    bus = EventBus()
+
+    with test_database() as session:
+        session.add(LocationRow(id=location_id, name="East Wing"))
+        session.add(
+            ZoneRow(
+                id=zone_id,
+                location_id=location_id,
+                name="Moisture bed",
+                moisture_threshold_low=0.35,
+                moisture_threshold_high=0.6,
+            )
+        )
+        session.commit()
+
+        session.add(
+            DeviceRow(
+                id=sensor_id,
+                device_type="moisture_sensor",
+                role="sensor",
+                device_family="simulation",
+                display_name="Alerting sensor",
+                default_config={"protocol": "simulation"},
+                sampling_interval_seconds=300,
+                tracking_enabled=True,
+                zone_id=zone_id,
+                location_id=location_id,
+            )
+        )
+        session.commit()
+
+        AlertPersistenceSubscriber(session).subscribe(bus)
+        bus.publish(
+            ReadingCreated(
+                device_id=sensor_id,
+                value=0.12,
+                unit="vwc",
+                source="manual",
+                recorded_at=datetime(2026, 9, 30, 10, 15, tzinfo=timezone.utc),
+                location_id=location_id,
+                zone_id=zone_id,
+            )
+        )
+
+        stored = session.query(AlertRow).filter_by(device_id=sensor_id).one()
+        assert stored.event_type == "threshold.crossed"
+        assert stored.severity == "warning"
+        assert stored.status == "active"
+        assert stored.location_id == location_id
+        assert stored.zone_id == zone_id
+        assert "below the low threshold" in stored.message

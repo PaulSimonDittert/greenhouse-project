@@ -3,6 +3,8 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from application.commands.service import CommandService
+from domain.events.bus import EventBus
+from domain.events.events import CommandFailed
 
 
 class FakeDeviceRepository:
@@ -145,3 +147,27 @@ def test_pump_command_is_rejected_for_grow_light():
     assert state_repo.state == "idle"
     assert state_repo.saved == []
     assert execution_log.rows == []
+
+
+def test_rejected_command_publishes_failure_event():
+    device_id = uuid.uuid4()
+    state_repo = FakeStateRepository("idle")
+    command_log = FakeCommandLogRepository()
+    execution_log = FakeExecutionLogRepository()
+    event_bus = EventBus()
+    observed = []
+    event_bus.subscribe(CommandFailed, observed.append)
+    service = CommandService(
+        object(),
+        devices=FakeDeviceRepository(SimpleNamespace(role="actuator", device_type="grow_light")),
+        states=state_repo,
+        executions=execution_log,
+        command_log=command_log,
+        event_bus=event_bus,
+    )
+
+    service.execute(device_id, "start_pump")
+
+    assert len(observed) == 1
+    assert observed[0].event_type == "command.failed"
+    assert observed[0].device_id == device_id

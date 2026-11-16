@@ -10,6 +10,8 @@ from domain.actuators.context import ActuatorContext
 from domain.actuators.ports import ActuatorPort
 from domain.commands.base import Command
 from domain.commands.invoker import CommandInvoker, UnknownCommandError, command_for
+from domain.events.bus import EventBus, default_event_bus
+from domain.events.events import CommandFailed
 from infrastructure.adapters.actuators.logging_decorator import LoggingActuatorDecorator
 from infrastructure.adapters.actuators.max_runtime_decorator import (
     MaxRunTimeActuatorDecorator,
@@ -54,12 +56,14 @@ class CommandService:
         states: ActuatorStateRepository | None = None,
         executions: ActuatorExecutionLogRepository | None = None,
         command_log: CommandLogRepository | None = None,
+        event_bus: EventBus | None = None,
     ) -> None:
         self.db = db
         self._devices = devices or DeviceRepository(db)
         self._states = states or ActuatorStateRepository(db)
         self._executions = executions or ActuatorExecutionLogRepository(db)
         self._command_log = command_log or CommandLogRepository(db)
+        self._event_bus = event_bus or default_event_bus
 
     def execute(self, device_id: uuid.UUID, command_type: str, payload: dict[str, Any] | None = None) -> Any:
         device = self._devices.get_device(device_id)
@@ -73,16 +77,27 @@ class CommandService:
             raise
 
         if command_type not in ActuatorContext(current_state).allowed_commands_for(device.device_type):
-            return self._command_log.insert(
+            error_message = (
+                f"Command '{command_type}' is not allowed for device type "
+                f"'{device.device_type}' in state '{current_state}'."
+            )
+            result = self._command_log.insert(
                 command_type=command_type,
                 device_id=device_id,
                 payload=payload or {},
                 status="rejected",
-                error_message=(
-                    f"Command '{command_type}' is not allowed for device type "
-                    f"'{device.device_type}' in state '{current_state}'."
-                ),
+                error_message=error_message,
             )
+            self._event_bus.publish(
+                CommandFailed(
+                    command_type=command_type,
+                    device_id=device_id,
+                    error_message=error_message,
+                    location_id=getattr(device, "location_id", None),
+                    zone_id=getattr(device, "zone_id", None),
+                )
+            )
+            return result
 
         port = build_actuator_port(
             self.db,
@@ -94,21 +109,42 @@ class CommandService:
         try:
             invoker.run(command, port)
         except MaxRunTimeExceededError as exc:
-            return self._command_log.insert(
+            result = self._command_log.insert(
                 command_type=command_type,
                 device_id=device_id,
                 payload=payload or {},
                 status="failed",
                 error_message=exc.message,
             )
+            self._event_bus.publish(
+                CommandFailed(
+                    command_type=command_type,
+                    device_id=device_id,
+                    error_message=exc.message,
+                    location_id=getattr(device, "location_id", None),
+                    zone_id=getattr(device, "zone_id", None),
+                )
+            )
+            return result
         except Exception as exc:  # pragma: no cover - defensive safety net
-            return self._command_log.insert(
+            error_message = str(exc)
+            result = self._command_log.insert(
                 command_type=command_type,
                 device_id=device_id,
                 payload=payload or {},
                 status="failed",
-                error_message=str(exc),
+                error_message=error_message,
             )
+            self._event_bus.publish(
+                CommandFailed(
+                    command_type=command_type,
+                    device_id=device_id,
+                    error_message=error_message,
+                    location_id=getattr(device, "location_id", None),
+                    zone_id=getattr(device, "zone_id", None),
+                )
+            )
+            return result
 
         if command.target_state is not None and command.target_state != current_state:
             new_state = ActuatorContext(current_state).transition(command.target_state)

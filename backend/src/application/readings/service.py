@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from application.readings.dto import ReadingDto
 from domain.devices.entity import Device
+from domain.events.bus import EventBus, default_event_bus
+from domain.events.events import ReadingCreated
 from domain.sensors.ports import SensorPort
 from domain.sensors.reading import Reading
 from infrastructure.adapters.sensors.selector import select_sensor_adapter
@@ -28,9 +30,10 @@ def _reading_to_dto(reading: Reading) -> ReadingDto:
 
 
 class ReadingIngest:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, *, event_bus: EventBus | None = None):
         self._devices = DeviceRepository(db)
         self._readings = ReadingRepository(db)
+        self._event_bus = event_bus or default_event_bus
 
     def take_reading(self, device_id: uuid.UUID, *, recorded_at: datetime | None = None) -> ReadingDto:
         device = self._get_sensor(device_id)
@@ -66,4 +69,18 @@ class ReadingIngest:
             raise ValueError("Reading device_id does not match the requested device")
         if reading.recorded_at.tzinfo is None or reading.recorded_at.utcoffset() is None:
             raise ValueError("Reading timestamp must be timezone-aware")
-        return _reading_to_dto(self._readings.insert(reading))
+
+        persisted_reading = self._readings.insert(reading)
+        if device.tracking_enabled:
+            self._event_bus.publish(
+                ReadingCreated(
+                    device_id=device.id,
+                    value=persisted_reading.value,
+                    unit=persisted_reading.unit,
+                    source=persisted_reading.source,
+                    recorded_at=persisted_reading.recorded_at,
+                    location_id=device.location_id,
+                    zone_id=device.zone_id,
+                )
+            )
+        return _reading_to_dto(persisted_reading)
