@@ -11,7 +11,7 @@ from domain.actuators.ports import ActuatorPort
 from domain.commands.base import Command
 from domain.commands.invoker import CommandInvoker, UnknownCommandError, command_for
 from domain.events.bus import EventBus, default_event_bus
-from domain.events.events import CommandFailed
+from domain.events.events import ActuatorStateChanged, CommandFailed, CommandSucceeded
 from infrastructure.adapters.actuators.logging_decorator import LoggingActuatorDecorator
 from infrastructure.adapters.actuators.max_runtime_decorator import (
     MaxRunTimeActuatorDecorator,
@@ -73,7 +73,8 @@ class CommandService:
         current_state = self._states.get_for_device(device_id) or "idle"
         try:
             command = command_for(command_type, device_id, payload or {})
-        except UnknownCommandError:
+        except UnknownCommandError as error:
+            self._publish_command_failed(device, device_id, command_type, str(error))
             raise
 
         if command_type not in ActuatorContext(current_state).allowed_commands_for(device.device_type):
@@ -88,15 +89,7 @@ class CommandService:
                 status="rejected",
                 error_message=error_message,
             )
-            self._event_bus.publish(
-                CommandFailed(
-                    command_type=command_type,
-                    device_id=device_id,
-                    error_message=error_message,
-                    location_id=getattr(device, "location_id", None),
-                    zone_id=getattr(device, "zone_id", None),
-                )
-            )
+            self._publish_command_failed(device, device_id, command_type, error_message)
             return result
 
         port = build_actuator_port(
@@ -116,15 +109,7 @@ class CommandService:
                 status="failed",
                 error_message=exc.message,
             )
-            self._event_bus.publish(
-                CommandFailed(
-                    command_type=command_type,
-                    device_id=device_id,
-                    error_message=exc.message,
-                    location_id=getattr(device, "location_id", None),
-                    zone_id=getattr(device, "zone_id", None),
-                )
-            )
+            self._publish_command_failed(device, device_id, command_type, exc.message)
             return result
         except Exception as exc:  # pragma: no cover - defensive safety net
             error_message = str(exc)
@@ -135,24 +120,52 @@ class CommandService:
                 status="failed",
                 error_message=error_message,
             )
-            self._event_bus.publish(
-                CommandFailed(
-                    command_type=command_type,
-                    device_id=device_id,
-                    error_message=error_message,
-                    location_id=getattr(device, "location_id", None),
-                    zone_id=getattr(device, "zone_id", None),
-                )
-            )
+            self._publish_command_failed(device, device_id, command_type, error_message)
             return result
 
         if command.target_state is not None and command.target_state != current_state:
             new_state = ActuatorContext(current_state).transition(command.target_state)
-            self._states.save(device_id, new_state)
+            saved_state = self._states.save(device_id, new_state)
+            self._event_bus.publish(
+                ActuatorStateChanged(
+                    device_id=device_id,
+                    previous_state=current_state,
+                    current_state=saved_state,
+                    location_id=getattr(device, "location_id", None),
+                    zone_id=getattr(device, "zone_id", None),
+                    command_type=command_type,
+                )
+            )
 
-        return self._command_log.insert(
+        result = self._command_log.insert(
             command_type=command_type,
             device_id=device_id,
             payload=payload or {},
             status="success",
+        )
+        self._event_bus.publish(
+            CommandSucceeded(
+                command_type=command_type,
+                device_id=device_id,
+                location_id=getattr(device, "location_id", None),
+                zone_id=getattr(device, "zone_id", None),
+            )
+        )
+        return result
+
+    def _publish_command_failed(
+        self,
+        device: Any,
+        device_id: uuid.UUID,
+        command_type: str,
+        error_message: str,
+    ) -> None:
+        self._event_bus.publish(
+            CommandFailed(
+                command_type=command_type,
+                device_id=device_id,
+                error_message=error_message,
+                location_id=getattr(device, "location_id", None),
+                zone_id=getattr(device, "zone_id", None),
+            )
         )

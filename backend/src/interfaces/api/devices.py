@@ -12,8 +12,10 @@ from application.locations.zone_assignment_service import ZoneAssignmentService
 from application.readings.dto import SamplingSettingsDto
 from application.readings.sampling_service import DeviceSamplingService
 from application.readings.service import DeviceNotFoundError
+from domain.events.bus import EventBus
 from infrastructure.db import get_db
 from infrastructure.persistence.actuator_state_repository import ActuatorStateRepository
+from interfaces.api.dependencies import get_event_bus
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
 
@@ -73,8 +75,13 @@ def update_device_sampling(
 
 
 @router.post("/{device_id}/transition", response_model=DeviceDto)
-def transition_actuator(device_id: uuid.UUID, payload: DeviceTransitionDto, db: Session = Depends(get_db)):
-    service = ActuatorStateService(db)
+def transition_actuator(
+    device_id: uuid.UUID,
+    payload: DeviceTransitionDto,
+    db: Session = Depends(get_db),
+    event_bus: EventBus = Depends(get_event_bus),
+):
+    service = ActuatorStateService(db, event_bus=event_bus)
     try:
         new_state = service.transition(device_id, payload.target)
     except ActuatorNotFoundError as error:

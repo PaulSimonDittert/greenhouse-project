@@ -27,5 +27,5 @@ The bus is synchronous and process-local; this phase does not implement WebSocke
 
 - Event contracts and bus: `backend/src/domain/events/events.py`, `backend/src/domain/events/bus.py`
 - Alert subscriber: `backend/src/application/alerts/subscribers.py`
-- Publisher services: `backend/src/application/readings/service.py`, `backend/src/application/commands/service.py`
+- Publisher services: `backend/src/application/readings/service.py`, `backend/src/application/commands/service.py`, `backend/src/application/devices/actuator_state_service.py`
 - API and feed: `backend/src/interfaces/api/alerts.py`, `frontend/src/components/events/EventFeed.tsx`

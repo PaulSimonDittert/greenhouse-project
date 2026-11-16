@@ -6,6 +6,8 @@ from application.devices.actuator_state_service import ActuatorStateService
 from domain.actuators.context import ActuatorContext
 from domain.actuators.state import IllegalTransitionError
 from domain.devices.entity import Device
+from domain.events.bus import EventBus
+from domain.events.events import ActuatorStateChanged
 
 
 @pytest.mark.parametrize(
@@ -94,12 +96,20 @@ def test_service_persists_valid_transition_only() -> None:
     service = ActuatorStateService.__new__(ActuatorStateService)
     service._devices = FakeDeviceRepository({device_id: device})
     service._states = FakeStateRepository({device_id: "idle"})
+    event_bus = EventBus()
+    observed = []
+    event_bus.subscribe(ActuatorStateChanged, observed.append)
+    service._event_bus = event_bus
 
     result = service.transition(device_id, "running")
 
     assert result == "running"
     assert service._states.store[device_id] == "running"
     assert service._states.saved == [(device_id, "running")]
+    assert len(observed) == 1
+    assert observed[0].previous_state == "idle"
+    assert observed[0].current_state == "running"
+    assert observed[0].device_id == device_id
 
 
 def test_service_does_not_persist_illegal_transition() -> None:
@@ -115,9 +125,14 @@ def test_service_does_not_persist_illegal_transition() -> None:
     service = ActuatorStateService.__new__(ActuatorStateService)
     service._devices = FakeDeviceRepository({device_id: device})
     service._states = FakeStateRepository({device_id: "idle"})
+    event_bus = EventBus()
+    observed = []
+    event_bus.subscribe(ActuatorStateChanged, observed.append)
+    service._event_bus = event_bus
 
     with pytest.raises(IllegalTransitionError):
         service.transition(device_id, "off")
 
     assert service._states.store[device_id] == "idle"
     assert service._states.saved == []
+    assert observed == []

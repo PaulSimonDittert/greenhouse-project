@@ -2,9 +2,12 @@ import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
+import pytest
+
 from application.commands.service import CommandService
+from domain.commands.invoker import UnknownCommandError
 from domain.events.bus import EventBus
-from domain.events.events import CommandFailed
+from domain.events.events import ActuatorStateChanged, CommandFailed, CommandSucceeded
 
 
 class FakeDeviceRepository:
@@ -93,13 +96,18 @@ def test_start_pump_transitions_to_running():
     state_repo = FakeStateRepository("idle")
     command_log = FakeCommandLogRepository()
     execution_log = FakeExecutionLogRepository()
+    event_bus = EventBus()
+    succeeded = []
+    state_changes = []
+    event_bus.subscribe(CommandSucceeded, succeeded.append)
+    event_bus.subscribe(ActuatorStateChanged, state_changes.append)
     service = CommandService(
         object(),
         devices=FakeDeviceRepository(SimpleNamespace(role="actuator", device_type="water_pump")),
         states=state_repo,
         executions=execution_log,
         command_log=command_log,
-        event_bus=EventBus(),
+        event_bus=event_bus,
     )
 
     service.execute(device_id, "start_pump", {"mode": "manual"})
@@ -107,6 +115,13 @@ def test_start_pump_transitions_to_running():
     assert state_repo.state == "running"
     assert command_log.rows[-1]["status"] == "success"
     assert execution_log.rows[-1]["success"] is True
+    assert len(succeeded) == 1
+    assert succeeded[0].device_id == device_id
+    assert succeeded[0].event_type == "command.succeeded"
+    assert len(state_changes) == 1
+    assert state_changes[0].previous_state == "idle"
+    assert state_changes[0].current_state == "running"
+    assert state_changes[0].command_type == "start_pump"
 
 
 def test_set_light_level_succeeds_without_changing_running_state():
@@ -114,13 +129,18 @@ def test_set_light_level_succeeds_without_changing_running_state():
     state_repo = FakeStateRepository("running")
     command_log = FakeCommandLogRepository()
     execution_log = FakeExecutionLogRepository()
+    event_bus = EventBus()
+    succeeded = []
+    state_changes = []
+    event_bus.subscribe(CommandSucceeded, succeeded.append)
+    event_bus.subscribe(ActuatorStateChanged, state_changes.append)
     service = CommandService(
         object(),
         devices=FakeDeviceRepository(SimpleNamespace(role="actuator", device_type="grow_light")),
         states=state_repo,
         executions=execution_log,
         command_log=command_log,
-        event_bus=EventBus(),
+        event_bus=event_bus,
     )
 
     service.execute(device_id, "set_light_level", {"level": 1})
@@ -129,6 +149,30 @@ def test_set_light_level_succeeds_without_changing_running_state():
     assert state_repo.saved == []
     assert command_log.rows[-1]["status"] == "success"
     assert execution_log.rows[-1]["success"] is True
+    assert len(succeeded) == 1
+    assert state_changes == []
+
+
+def test_unknown_command_publishes_failure_event():
+    device_id = uuid.uuid4()
+    event_bus = EventBus()
+    observed = []
+    event_bus.subscribe(CommandFailed, observed.append)
+    service = CommandService(
+        object(),
+        devices=FakeDeviceRepository(SimpleNamespace(role="actuator", device_type="water_pump")),
+        states=FakeStateRepository("idle"),
+        executions=FakeExecutionLogRepository(),
+        command_log=FakeCommandLogRepository(),
+        event_bus=event_bus,
+    )
+
+    with pytest.raises(UnknownCommandError):
+        service.execute(device_id, "not_a_command")
+
+    assert len(observed) == 1
+    assert observed[0].device_id == device_id
+    assert observed[0].error_message
 
 
 def test_pump_command_is_rejected_for_grow_light():
